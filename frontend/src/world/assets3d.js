@@ -328,18 +328,18 @@ export class Agent3Assets {
         const ctx = canvas.getContext('2d');
         canvas.width = 1024;
         canvas.height = 512;
-        ctx.fillStyle = '#171e1b';
+        ctx.fillStyle = '#302b31';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.fillStyle = '#ffffff';
         ctx.font = '700 42px Space Grotesk, sans-serif';
         ctx.fillText(title, 46, 70);
-        ctx.fillStyle = '#7ef6a5';
+        ctx.fillStyle = '#e4bd98';
         ctx.font = '700 30px JetBrains Mono, monospace';
         ctx.fillText(chart ? 'A PLACE TO EXIST.' : 'ECONOMY · NEXT CHAPTER', 46, 135);
 
         if (chart) {
-            ctx.fillStyle = '#a5ed8b';
+            ctx.fillStyle = '#edceb0';
             ctx.font = '700 76px Space Grotesk, sans-serif';
             ctx.fillText('BUILD. WORK.', 46, 270);
             ctx.fillText('DISCOVER.', 46, 358);

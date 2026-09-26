@@ -44,5 +44,5 @@ async def settle_mission(mission, agent):
         '$push': {'history': {'event': 'Mission completed', 'timestamp': stamp(), 'missionId': mid, 'rewardCents': reward['amountCents']}}
     })
     await db.agents.update_one({'id': agent['id'], 'workingMissionId': mid}, {'$set': {'workingMissionId': None}})
-    await db.missions.update_one({'id': mid}, {'$set': {'status': 'COMPLETED', 'completedAt': stamp(), 'rewardAmount': reward['amountCents'] / 100, 'transactionStatus': reward['transactionStatus']}})
+    await db.missions.update_one({'id': mid, 'status': {'$ne': 'COMPLETED'}}, {'$set': {'status': 'COMPLETED', 'phaseDetail': 'Report complete and saved to the private work feed.', 'completedAt': stamp(), 'rewardAmount': reward['amountCents'] / 100, 'transactionStatus': reward['transactionStatus']}, '$push': {'events': {'status': 'COMPLETED', 'timestamp': stamp(), 'detail': 'Report saved. Energy and discovery recorded.'}}})
     await refresh_agent(await db.agents.find_one({'id': agent['id']}, {'_id': 0}))

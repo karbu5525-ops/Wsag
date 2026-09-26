@@ -81,7 +81,7 @@ def created_agents_and_missions():
     db = client[db_name]
     try:
         # Let request-started demo work finish before removing its documents.
-        deadline = time.time() + 210
+        deadline = time.time() + 480
         while data['mission_ids'] and time.time() < deadline and db.missions.count_documents({'id': {'$in': data['mission_ids']}, 'status': {'$nin': ['COMPLETED', 'FAILED']}}):
             time.sleep(1)
         pool = db.pool.find_one({'id': 'main'})
@@ -93,6 +93,7 @@ def created_agents_and_missions():
         if data["agent_ids"]:
             db.agents.delete_many({"id": {"$in": data["agent_ids"]}})
         if data["wallet_ids"]:
+            db.chat.delete_many({"walletId": {"$in": list(data['wallet_ids'])}})
             db.sessions.delete_many({"walletId": {"$in": list(data['wallet_ids'])}})
             db.wallets.delete_many({"id": {"$in": list(data['wallet_ids'])}})
     finally:
@@ -329,8 +330,9 @@ def test_resting_prevents_mission_then_server_time_refill(wallet_session, create
     assert body["energyResetAt"] is None
 
 
-def test_chat_persistence_and_rate_limit(wallet_session):
+def test_chat_persistence_and_rate_limit(wallet_session, created_agents_and_missions):
     client = wallet_session["client"]
+    created_agents_and_missions['wallet_ids'].add(wallet_session['wallet']['id'])
     msg = f"TEST_chat_{int(time.time())}"
 
     sent = client.post(f"{BASE_URL}/api/chat", json={"message": msg}, timeout=30)
@@ -370,7 +372,7 @@ def test_live_mission_uses_real_ai_and_sources(wallet_session, created_agents_an
     mission_id = start.json()["id"]
     created_agents_and_missions["mission_ids"].append(mission_id)
 
-    done = _wait_mission_complete(client, mission_id, timeout_sec=210)
+    done = _wait_mission_complete(client, mission_id, timeout_sec=480)
     assert done["status"] == "COMPLETED"
     assert done["mode"] == "live"
     assert isinstance(done["output"], str) and len(done["output"].strip()) > 80

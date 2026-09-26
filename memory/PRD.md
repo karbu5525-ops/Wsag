@@ -50,13 +50,13 @@ Agents have identity, brain, strategy, tools, data sources, rules, output format
 - Replaced old fake chart/trading screen content with Agent.ws civilization/LOCKED messaging.
 - Added contextual Research Lab and Work Archive buildings, small articulated 3D robot inhabitants, overhead state labels, and a controllable player.
 - All imagery uses the actual reference logo or real rendered Three.js geometry, not a 2D fake world or dashboard hero.
-- HUD: dark translucent green world terminals with lime actions; reference's warm desert remains the main experience.
+- Initial HUD used green/lime; **superseded by the user's v2 direction below**. Current interface is graphite/copper/chalk with sky accents. The desert reference remains the main experience.
 - Shadcn/Radix modeless terminal panels allow navigation across the topbar/dock while open. Header and dock remain visible/usable on desktop and390px mobile.
 
 ## Architecture decisions
 ### Frontend
 - React19, React Router7, Three.js0.186 with OrbitControls, custom lightweight reference asset kit and mini robots, Lucide, Shadcn/Radix primitives, Sonner, ReactMarkdown.
-- World persists across routes. `/agents`, `/agents/:id`, `/agents/:id/mission`, `/create`, `/missions/:id`, `/work-feed`, `/wallet`, `/treasury`, `/exchange`, `/skills`, `/chat` are contextual world terminals.
+- World persists across routes. `/agents`, `/agents/:id`, `/agents/:id/mission`, `/create`, `/missions/:id`, `/work-feed`, `/wallet`, `/treasury`, `/exchange`, `/skills`, `/chat`, `/docs` are contextual world terminals. The About/View world welcome layer is on the same mounted canvas, not a separate world/page.
 - API base uses only protected `REACT_APP_BACKEND_URL`.
 - World refresh5s; mission progress snapshots1s; chat4.5s. Mission execution happens server-side and continues when the tab closes.
 - Demo session bearer is browser-local; disconnect/reconnect intentionally restores that browser's demo identity. Creation drafts survive wallet handoff in sessionStorage.
@@ -66,10 +66,10 @@ Agents have identity, brain, strategy, tools, data sources, rules, output format
 - FastAPI/Motor/MongoDB, configured solely with existing protected MONGO_URL/DB_NAME.
 - `db.py`: configured database/time helpers. `models.py`: constrained Pydantic input and safe output models.
 - `server.py`: demo sessions, holdings, discovery/profiles, owner-only missions/work, global chat.
-- `providers.py`: replaceable live and simulation execution adapters; stream_message-based GPT-5.4 execution and tool feedback.
+- `research_pipeline.py`: current live execution entry, with four separate streamed GPT-5.4 passes (plan, analysis, verification, report). `providers.py` supplies read-only source tools and retains the legacy illustrative adapter; its old single-chat live function is not used by run_mission.
 - Live read-only tools: GitHub repository API search, Wikipedia search, public website reading. These are not a claim of exhaustive general-web/social search.
 - Public URL reader checks scheme/standard ports, DNS public addresses, redirects, content type, response-size/time bounds. No code execution, wallet tools, or trading permissions.
-- `missions.py`: persisted lifecycle and streamed-output snapshots;180s cap; provider failure consumes no energy and creates no roll. Explicit demo provider uses visible staged simulation and0sources.
+- `missions.py`: persisted lifecycle, actual progress details, research artifacts, and output snapshots;420s cap; provider failure consumes no energy and creates no roll. The user-facing UI launches real research only; illustrative backend execution remains isolated/clearly identified for regression compatibility.
 - `economy.py`: independent secrets.randbelow(100), integer-cent accounting, atomic pool reservation, idempotent agent energy/treasury credit keyed by mission ID, lazy server-time energy reset.
 - Mongo public reads exclude `_id`; no ObjectId escapes into JSON. Economic state has no client-authoritative fields.
 - Request-started work uses FastAPI BackgroundTasks; startup recovery resumes unfinished mission records. No fake periodic agents or browser-only regeneration timer.
@@ -106,6 +106,47 @@ Agents have identity, brain, strategy, tools, data sources, rules, output format
 - Updated pytest fixture to await in-flight work and refund its own demo ledger on cleanup.
 
 ## Explicit limits / prioritized backlog
+
+## Revision v2 — user-reported bugs and experience changes (2026-09-25/26)
+
+### User's requested changes
+1. Walking looked floating and unsmooth.
+2. Other bots stood still, making the world feel dead.
+3. Do not display USDC drop odds; users should see Discovery Rewards associated with work.
+4. Add documentation and tutorial so people understand the product.
+5. Jobs should be substantive research following the agent's strategy. Close the mission modal at launch, show current execution stage over the world, and open the final report only after completion.
+6. Remove repetitive demo/test words from the main experience. User intends to integrate real Solana later.
+7. Same-scene About/Docs/View world opening layer; animate entry and remove opening copy to focus on the world.
+8. Follow-up: English documentation, no green interface/panels; use colors suited to the world.
+
+### Implemented
+- Rebuilt mini-robot rigs with ground-level shoes, articulated legs/arms, distance-driven gait, damped acceleration/deceleration/turning, terrain/path/plaza surface contact, and contact shadows. Removed whole-agent sine-wave hovering.
+- ACTIVE inhabitants now walk A* routes with random destinations and pauses, avoid building obstacles, and pause for hover interaction. WORKING agents stay focused; RESTING/SLEEPING agents do not wander.
+- Added `pathfinding` library; `locomotion.js` maintains navigation/ground contact. Static scenery is batched and animated robot parts are rendered as instanced meshes to reduce GPU draw calls. Original rigs remain available for picking.
+- New same-canvas opening layer: About, Docs, View world; entry camera tween and fade. Opening title is unmounted after entry. Returning to About retains the same world/agents. Session entry preference survives refresh.
+- English Field Guide (`/docs`) has six chapters: Getting started, Build an agent, Missions & research, Energy & identity, Discovery & treasury, Privacy & publishing. Added optional four-step guided tour from Docs/world controls.
+- Replaced green interface colors with graphite/copper/chalk/sky, including panels, actions, robot avatars, logo tint, labels, and billboards. Natural vegetation remains green.
+- Removed probability breakdowns, reward-roll explanation cards, and repeated demo/test/alpha labels from normal UI. Discovery appears as a consequence of completed work.
+- Kept one accurate, small integration-status note in wallet and treasury: local simulated holdings / off-chain settlement not connected. Do not represent unconnected Solana or simulated USDC as real on-chain funds. No withdrawal warning banners were added.
+- Current mission workflow runs **real separate work**, not artificial timers: creator-strategy JSON plan → enabled provider searches → primary-page collection → evidence analysis → independent verification → corrected final report. Actual stages and work artifacts are stored server-side.
+- Launch closes the form and returns to the world. `useMissionTracker` polls owner-only work, restores active jobs across reload, shows current phase/details/elapsed/sources, and queues finished reports to auto-open once when back in the world. Closing a finished report does not loop it open again. Navigating to in-progress work returns to the world tracker rather than streaming a chat-like report.
+- Expanded tracker displays all8stages: MISSION RECEIVED, PLANNING, SEARCHING, COLLECTING SOURCES, ANALYZING, CROSS-CHECKING, GENERATING OUTPUT, COMPLETED. Reports display the plan and verification notes on demand.
+- Disabled tools remain enforced by the backend. Energy/reward/ownership logic unchanged. Probabilities remain private server implementation details, not public UI copy.
+- Mobile long-name follow-up fixed with flexible wrapping, including40-character unbroken names; timer/toggle/dock/D-pad remain accessible.
+
+### Verification (testing-agent reports, not inspection-only claims)
+- `/app/test_reports/iteration_2.json`:13/13 existing backend regressions plus2/2 focused real research tests passed. Real sources, independent plan/analysis/verification artifacts, all8chronological stage events, disabled-tool enforcement, and exact energy/jobs/treasury effects verified.
+- Same report confirms fresh same-canvas intro, disappearing copy, docs before/after entry, walking/NPC motion, world interaction, live UI launch closing the form, persistent8-stage tracker, reload recovery, real completion auto-opening once, and no reopen loop.
+- `/app/test_reports/iteration_3.json`: focused frontend follow-up **100% passed**, no remaining reported issues. Full40-character name wraps without clipping, expanded/collapsed tracker and elapsed timer work, long URLs wrap, mobile Docs/D-pad remain reachable, and no horizontal overflow at1920×800 or390×844.
+- Iteration3 used isolated browser-route fixtures only for worst-case text layout, not to claim live research. Actual live research was separately verified in iteration2.
+- Optimized frontend production build compiles successfully. Test-only agents/missions/chat were removed; their ledger debits refunded once. User-created Atthena and Field Researcher remain intact; pool accounting balanced and no orphan reward records found.
+
+### Current v2 status
+- All seven reported product issues, the palette request, and the follow-up mobile readability issue are implemented and verified in the agreed scope.
+- Do not reintroduce full-screen chat output for running work, reward odds on public UI, constant hero text over the entered world, stationary ACTIVE residents, or green UI defaults.
+- Remaining live-chain prerequisites below are unchanged. User plans to handle subsequent Solana integration; no trading/payout claims should be activated without it.
+
+## Remaining integration backlog
 ### P0 — required before any live-money launch, intentionally not active now
 - Obtain actual Solana $AGENTWS mint and trusted RPC endpoint.
 - Implement signed-wallet authentication and server-verified SPL token balances. Current identities and holdings are DEMO, not blockchain verification.

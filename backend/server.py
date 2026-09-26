@@ -27,7 +27,7 @@ async def identity(authorization: str = Header(default='')):
     token = authorization.removeprefix('Bearer ')
     session = await db.sessions.find_one({'tokenHash': hashlib.sha256(token.encode()).hexdigest()}, {'_id':0})
     if not session or datetime.fromisoformat(session['expiresAt']) <= now():
-        raise HTTPException(401, 'Connect your demo wallet to continue.')
+        raise HTTPException(401, 'Connect your identity to continue.')
     return await db.wallets.find_one({'id': session['walletId']}, {'_id':0})
 
 async def owned(aid, user):
@@ -47,7 +47,7 @@ async def health():
 async def connect():
     if os.environ['WALLET_MODE'] != 'demo': raise HTTPException(503, 'Live wallet verification is not configured.')
     token = secrets.token_urlsafe(40)
-    wallet = {'id': 'Demo' + secrets.token_hex(20), 'balance':150000, 'mode':'demo', 'createdAt':stamp()}
+    wallet = {'id': 'ws_' + secrets.token_hex(20), 'balance':150000, 'mode':'demo', 'createdAt':stamp()}
     await db.wallets.insert_one(wallet.copy())
     await db.sessions.insert_one({'id':str(uuid.uuid4()), 'walletId':wallet['id'], 'tokenHash':hashlib.sha256(token.encode()).hexdigest(), 'expiresAt':(now()+timedelta(days=30)).isoformat()})
     return {'token':token, 'wallet':wallet}
@@ -109,7 +109,7 @@ async def start(data: MissionCreate, background: BackgroundTasks, user=Depends(i
     a = await owned(data.agentId, user)
     if user['balance'] < HOLDING_REQUIREMENT: raise HTTPException(403, 'Agent is sleeping. Restore the 100,000 $AGENTWS holding requirement.')
     if a['energy'] < 10: raise HTTPException(409, 'Agent is resting. Energy restores five hours after the first completed mission in this cycle.')
-    if data.mode == 'live' and not os.environ.get('EMERGENT_LLM_KEY'): raise HTTPException(503, 'Live AI unavailable. Select Demo simulation.')
+    if data.mode == 'live' and not os.environ.get('EMERGENT_LLM_KEY'): raise HTTPException(503, 'The research engine is temporarily unavailable.')
     mid = str(uuid.uuid4())
     lock = await db.agents.update_one({'id':a['id'], 'workingMissionId':None, 'energy':{'$gte':10}}, {'$set':{'workingMissionId':mid, 'status':'WORKING'}})
     if not lock.modified_count: raise HTTPException(409, 'This agent already has a mission in progress.')
